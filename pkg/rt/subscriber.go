@@ -32,14 +32,15 @@ type MetadataProvider interface {
 // Subscriber polls rt.fastly.com for a single service ID.
 // It emits the received real-time stats data to Prometheus.
 type Subscriber struct {
-	client      HTTPClient
-	userAgent   string
-	token       string
-	serviceID   string
-	provider    MetadataProvider
-	metrics     *prom.Metrics
-	postprocess func()
-	logger      log.Logger
+	client       HTTPClient
+	userAgent    string
+	token        string
+	serviceID    string
+	useAggregate bool
+	provider     MetadataProvider
+	metrics      *prom.Metrics
+	postprocess  func()
+	logger       log.Logger
 }
 
 // SubscriberOption provides some additional behavior to a subscriber.
@@ -70,6 +71,12 @@ func WithLogger(logger log.Logger) SubscriberOption {
 // no-op postprocess function is invoked. This option is only useful for tests.
 func WithPostprocess(f func()) SubscriberOption {
 	return func(s *Subscriber) { s.postprocess = f }
+}
+
+// WithUserAgent sets the User-Agent supplied to rt.fastly.com.
+// By default, the DefaultUserAgent is used.
+func WithUseAggregate(agg bool) SubscriberOption {
+	return func(s *Subscriber) { s.useAggregate = agg }
 }
 
 // DefaultUserAgent passed to rt.fastly.com.
@@ -176,7 +183,14 @@ func (s *Subscriber) query(ctx context.Context, ts uint64) (currentName string, 
 		} else {
 			result = rtResultSuccess
 		}
-		process(rt, s.serviceID, name, version, s.metrics)
+
+		if s.useAggregate {
+			processAggregated(rt, s.serviceID, name, version, s.metrics)
+		} else {
+			process(rt, s.serviceID, name, version, s.metrics)
+
+		}
+
 		s.postprocess()
 
 	case http.StatusUnauthorized, http.StatusForbidden:

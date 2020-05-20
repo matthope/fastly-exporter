@@ -41,11 +41,12 @@ func main() {
 		metricWhitelist  = stringslice{}
 		metricBlacklist  = stringslice{}
 
-		apiRefresh  = fs.Duration("api-refresh", time.Minute, "how often to poll api.fastly.com for updated service metadata (15s–10m)")
-		apiTimeout  = fs.Duration("api-timeout", 15*time.Second, "HTTP client timeout for api.fastly.com requests (5–60s)")
-		rtTimeout   = fs.Duration("rt-timeout", 45*time.Second, "HTTP client timeout for rt.fastly.com requests (45–120s)")
-		debug       = fs.Bool("debug", false, "Log debug information")
-		versionFlag = fs.Bool("version", false, "print version information and exit")
+		apiRefresh   = fs.Duration("api-refresh", time.Minute, "how often to poll api.fastly.com for updated service metadata (15s–10m)")
+		apiTimeout   = fs.Duration("api-timeout", 15*time.Second, "HTTP client timeout for api.fastly.com requests (5–60s)")
+		rtTimeout    = fs.Duration("rt-timeout", 45*time.Second, "HTTP client timeout for rt.fastly.com requests (45–120s)")
+		useAggregate = fs.Bool("use-aggregate", false, "Use aggregated data rather than per-datacenter")
+		debug        = fs.Bool("debug", false, "Log debug information")
+		versionFlag  = fs.Bool("version", false, "print version information and exit")
 	)
 	fs.Var(&serviceIDs, "service", "if set, only include this service ID (repeatable)")
 	fs.Var(&serviceWhitelist, "service-whitelist", "if set, only include services whose names match this regex (repeatable)")
@@ -252,6 +253,7 @@ func main() {
 			rt.WithLogger(rtLogger),
 			rt.WithMetadataProvider(cache),
 			rt.WithUserAgent(`Fastly-Exporter (` + programVersion + `)`),
+			rt.WithUseAggregate(*useAggregate),
 		}
 
 		manager = rt.NewManager(cache, rtClient, *token, metrics, subscriberOptions, rtLogger)
